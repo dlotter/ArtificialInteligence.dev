@@ -1,6 +1,51 @@
 """
 Skeleton code for Project 1 of Columbia University's AI EdX course (8-puzzle).
 Python 3
+
+EXAMPLE CODE: 
+    USE python3 -m cProfile -s tottime driver.py <puzzle initial state> for checking speed results
+    
+    python3 project1.py bfs 1,2,5,3,4,0,6,7,8
+    python3 project1.py dfs 1,2,5,3,4,0,6,7,8
+    python3 project1.py bfs 3,1,2,0,4,5,6,7,8
+    python3 project1.py dfs 3,1,2,0,4,5,6,7,8
+    python3 project1.py bfs 1,2,5,3,4,0,6,7,8
+    python3 project1.py dfs 1,2,5,3,4,0,6,7,8
+
+
+    EXAMPLES OF OUTPUTS:
+        python3 project1.py dfs 6,1,8,4,0,2,7,3,5
+
+            path_to_goal: ['Up', 'Left', 'Down', ... , 'Up', 'Left', 'Up', 'Left']
+            cost_of_path: 46142
+            nodes_expanded: 51015
+            search_depth: 46142
+            max_search_depth: 46142
+
+        python3 project1.py bfs 6,1,8,4,0,2,7,3,5
+
+            path_to_goal: ['Down', 'Right', 'Up', 'Up', 'Left', 'Down', 'Right', 'Down', 'Left', 'Up', 'Left', 'Up', 'Right', 'Right', 'Down', 'Down', 'Left', 'Left', 'Up', 'Up']
+            cost_of_path: 20
+            nodes_expanded: 54094
+            search_depth: 20
+            max_search_depth: 21
+
+        python3 project1.py dfs 8,6,4,2,1,3,5,7,0
+
+            path_to_goal: ['Up', 'Up', 'Left', ..., , 'Up', 'Up', 'Left']
+            cost_of_path: 9612
+            nodes_expanded: 9869
+            search_depth: 9612
+            max_search_depth: 9612
+
+
+        python3 project1.py bfs 8,6,4,2,1,3,5,7,0
+
+            path_to_goal: ['Left', 'Up', 'Up', 'Left', 'Down', 'Right', 'Down', 'Left', 'Up', 'Right', 'Right', 'Up', 'Left', 'Left', 'Down', 'Right', 'Right', 'Up', 'Left', 'Down', 'Down', 'Right', 'Up', 'Left', 'Up', 'Left']
+            cost_of_path: 26
+            nodes_expanded: 166786
+            search_depth: 26
+            max_search_depth: 27
 """
 
 import queue as Q
@@ -171,25 +216,40 @@ class PuzzleState(object):
         return self.children
 
 
+class Frontier():
+    def __init__(self, initial_state, stack = False, queue = False):
+        self.stack = stack
+        self.queue = queue
+        self.frontier = [initial_state]
+        self.config_frontier = set()
+        self.config_frontier.add(initial_state.config)
+    
+    def pop(self):
+        removed = self.frontier.pop() if self.stack else self.frontier.pop(0)
+        self.config_frontier.remove(removed.config)
+        return removed
+    
+    def append(self, state):
+        self.frontier.append(state)
+        self.config_frontier.add(state.config)
+
+
+    def empty(self):
+        return True if not self.frontier else False
+
+
 # Function that Writes to output.txt
 # Students need to change the method to have the corresponding parameters
 def writeOutput(start_time, nodes_expanded, max_search_depth, state=False):
     '''
-    Example code: & C:/ProgramData/Anaconda3/python.exe "c:/Users/Diego/Documents/GitHub/ArtificialInteligence.dev/Project 1/project1.py" bfs 1,2,5,3,4,0,6,7,8
-    
-    path_to_goal: ['Up', 'Left', 'Left']
-
-    cost_of_path: 3
-
-    nodes_expanded: 10
-
-    search_depth: 3
-
-    max_search_depth: 4
-
-    running_time: 0.00188088
-
-    max_ram_usage: 0.07812500
+    Example output:
+        path_to_goal: ['Up', 'Left', 'Left']
+        cost_of_path: 3
+        nodes_expanded: 10
+        search_depth: 3
+        max_search_depth: 4
+        running_time: 0.00188088
+        max_ram_usage: 0.07812500
     '''
     
     peak = tracemalloc.get_traced_memory()[1]
@@ -217,14 +277,12 @@ def bfs_search(initial_state):
     nodes_expanded = 0
     max_search_depth = 0
 
-    frontier = Q.Queue()
-    frontier.put(initial_state)
-    explored = list()
+    frontier = Frontier(initial_state)
+    explored = set()
 
     while not frontier.empty():
-
-        state = frontier.get()
-        explored.append(state)
+        state = frontier.pop()
+        explored.add(state.config)
         nodes_expanded += 1
         
         if max_search_depth < state.cost:
@@ -234,8 +292,8 @@ def bfs_search(initial_state):
             return writeOutput(start_time, nodes_expanded, max_search_depth, state)
 
         for neighbor in state.expand():
-            if neighbor.config not in map(lambda x: x.config, explored) and neighbor.config not in map(lambda x: x.config, frontier.queue):
-                frontier.put(neighbor)
+            if neighbor.config not in explored and neighbor.config not in frontier.config_frontier:
+                frontier.append(neighbor)
 
     return writeOutput(start_time, nodes_expanded, max_search_depth)
 
@@ -243,8 +301,30 @@ def bfs_search(initial_state):
 def dfs_search(initial_state):
     """DFS search"""
 
-    ### STUDENT CODE GOES HERE ###
-    pass
+    start_time = time.time()
+    tracemalloc.start()
+    nodes_expanded = 0
+    max_search_depth = 0
+
+    frontier = Frontier(initial_state, stack=True)
+    explored = set()
+    
+    while not frontier.empty():
+        state = frontier.pop()
+        explored.add(state.config)
+        nodes_expanded += 1
+        
+        if max_search_depth < state.cost:
+            max_search_depth = state.cost
+
+        if test_goal(state.config):
+            return writeOutput(start_time, nodes_expanded, max_search_depth, state)
+
+        for neighbor in state.expand()[::-1]:
+            if neighbor.config not in explored and neighbor.config not in frontier.config_frontier:
+                frontier.append(neighbor)
+
+    return writeOutput(start_time, nodes_expanded, max_search_depth)
 
 
 def A_star_search(initial_state):
