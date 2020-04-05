@@ -173,8 +173,10 @@ class PuzzleState(object):
 
 # Function that Writes to output.txt
 # Students need to change the method to have the corresponding parameters
-def writeOutput(start_time, state=False):
+def writeOutput(start_time, nodes_expanded, max_search_depth, state=False):
     '''
+    Example code: & C:/ProgramData/Anaconda3/python.exe "c:/Users/Diego/Documents/GitHub/ArtificialInteligence.dev/Project 1/project1.py" bfs 1,2,5,3,4,0,6,7,8
+    
     path_to_goal: ['Up', 'Left', 'Left']
 
     cost_of_path: 3
@@ -190,18 +192,18 @@ def writeOutput(start_time, state=False):
     max_ram_usage: 0.07812500
     '''
     
-    current, peak = tracemalloc.get_traced_memory()
+    peak = tracemalloc.get_traced_memory()[1]
 
     tracemalloc.stop()
     
     if state:
         print(f'path_to_goal:  {calculate_path(state)}\n',
             f'cost_of_path: {calculate_total_cost(state)} \n',
-            'nodes_expanded: {} \n',
-            'search_depth: {} \n',
-            'max_search_depth: {} \n',       
+            f'nodes_expanded: {nodes_expanded - 1} \n',
+            f'search_depth: {calculate_total_cost(state)} \n',
+            f'max_search_depth: {max_search_depth} \n',       
             f'max_running_time: {time.time() - start_time} \n',
-            f"max_ram_usage: {peak / 10**6}"
+            f"max_ram_usage: {peak / 10**6} \n"
                 )
     else:
         print('Failure')
@@ -211,26 +213,31 @@ def bfs_search(initial_state):
     """BFS search"""
 
     start_time = time.time()
-
     tracemalloc.start()
+    nodes_expanded = 0
+    max_search_depth = 0
 
     frontier = Q.Queue()
     frontier.put(initial_state)
-    explored = set()
+    explored = list()
 
     while not frontier.empty():
+
         state = frontier.get()
-        explored.add(state)
+        explored.append(state)
+        nodes_expanded += 1
+        
+        if max_search_depth < state.cost:
+            max_search_depth = state.cost
 
         if test_goal(state.config):
-            
-            return writeOutput(start_time, state)
+            return writeOutput(start_time, nodes_expanded, max_search_depth, state)
 
         for neighbor in state.expand():
-            if neighbor not in explored.union(frontier.queue):
+            if neighbor.config not in map(lambda x: x.config, explored) and neighbor.config not in map(lambda x: x.config, frontier.queue):
                 frontier.put(neighbor)
 
-    return writeOutput(start_time)
+    return writeOutput(start_time, nodes_expanded, max_search_depth)
 
 
 def dfs_search(initial_state):
@@ -252,16 +259,13 @@ def calculate_total_cost(state):
     return state.cost
 
 
-def calculate_path(state, actions=False):
+def calculate_path(state):
+    path = []
+    while state.action != "Initial":
+        path.append(state.action)
+        state = state.parent
     
-    if not actions:
-        actions = []
-
-    if state.action != "Initial":
-        actions.append(state.action)
-        calculate_path(state.parent, actions)
-    
-    return actions[::-1]
+    return path[::-1]
 
 
 def test_goal(puzzle_state):
