@@ -4,14 +4,13 @@ Python 3
 
 EXAMPLE CODE: 
     USE python3 -m cProfile -s tottime driver.py <puzzle initial state> for checking speed results
-    
+
     python3 project1.py bfs 1,2,5,3,4,0,6,7,8
     python3 project1.py dfs 1,2,5,3,4,0,6,7,8
     python3 project1.py bfs 3,1,2,0,4,5,6,7,8
     python3 project1.py dfs 3,1,2,0,4,5,6,7,8
     python3 project1.py bfs 1,2,5,3,4,0,6,7,8
     python3 project1.py dfs 1,2,5,3,4,0,6,7,8
-
 
     EXAMPLES OF OUTPUTS:
         python3 project1.py dfs 6,1,8,4,0,2,7,3,5
@@ -38,7 +37,6 @@ EXAMPLE CODE:
             search_depth: 9612
             max_search_depth: 9612
 
-
         python3 project1.py bfs 8,6,4,2,1,3,5,7,0
 
             path_to_goal: ['Left', 'Up', 'Up', 'Left', 'Down', 'Right', 'Down', 'Left', 'Up', 'Right', 'Right', 'Up', 'Left', 'Left', 'Down', 'Right', 'Right', 'Up', 'Left', 'Down', 'Down', 'Right', 'Up', 'Left', 'Up', 'Left']
@@ -48,16 +46,15 @@ EXAMPLE CODE:
             max_search_depth: 27
 """
 
-import queue as Q
-
 import tracemalloc
+
+import bisect
 
 import time
 
 import sys
 
 import math
-
 
 #### SKELETON CODE ####
 # The Class that Represents the Puzzle
@@ -66,7 +63,7 @@ class PuzzleState(object):
                    
                 # config=begin_state  n=size
                 # begin_state = (1,2,3,0,4,5,6,7,8)
-    def __init__(self, config, n, parent=None, action="Initial", cost=0):
+    def __init__(self, config, n, parent=None, action="Initial", cost=0, manhattanCost=0):
 
         if n*n != len(config) or n < 2:
 
@@ -86,6 +83,8 @@ class PuzzleState(object):
 
         self.children = []
 
+        self.manhattanCost = cost
+
         for i, item in enumerate(self.config):
             
             if item == 0:
@@ -95,6 +94,10 @@ class PuzzleState(object):
                 self.blank_col = i % self.n
 
                 break
+
+        for i, item in enumerate(self.config):
+            if item != 0:
+                self.manhattanCost += calculate_manhattan_dist(i, item, self.n)
 
     def display(self):
 
@@ -126,7 +129,7 @@ class PuzzleState(object):
 
             new_config[blank_index], new_config[target] = new_config[target], new_config[blank_index]
 
-            return PuzzleState(tuple(new_config), self.n, parent=self, action="Left", cost=self.cost + 1)
+            return PuzzleState(tuple(new_config), self.n, parent=self, action="Left", cost=self.cost + 1, manhattanCost=self.manhattanCost)
 
     def move_right(self):
 
@@ -144,7 +147,7 @@ class PuzzleState(object):
 
             new_config[blank_index], new_config[target] = new_config[target], new_config[blank_index]
 
-            return PuzzleState(tuple(new_config), self.n, parent=self, action="Right", cost=self.cost + 1)
+            return PuzzleState(tuple(new_config), self.n, parent=self, action="Right", cost=self.cost + 1, manhattanCost=self.manhattanCost)
 
     def move_up(self):
 
@@ -162,7 +165,7 @@ class PuzzleState(object):
 
             new_config[blank_index], new_config[target] = new_config[target], new_config[blank_index]
 
-            return PuzzleState(tuple(new_config), self.n, parent=self, action="Up", cost=self.cost + 1)
+            return PuzzleState(tuple(new_config), self.n, parent=self, action="Up", cost=self.cost + 1, manhattanCost=self.manhattanCost)
 
     def move_down(self):
 
@@ -180,7 +183,7 @@ class PuzzleState(object):
 
             new_config[blank_index], new_config[target] = new_config[target], new_config[blank_index]
 
-            return PuzzleState(tuple(new_config), self.n, parent=self, action="Down", cost=self.cost + 1)
+            return PuzzleState(tuple(new_config), self.n, parent=self, action="Down", cost=self.cost + 1, manhattanCost=self.manhattanCost)
 
     def expand(self):
         """expand the node"""
@@ -223,7 +226,7 @@ class Frontier():
         self.frontier = [initial_state]
         self.config_frontier = set()
         self.config_frontier.add(initial_state.config)
-    
+
     def pop(self):
         removed = self.frontier.pop() if self.stack else self.frontier.pop(0)
         self.config_frontier.remove(removed.config)
@@ -237,6 +240,42 @@ class Frontier():
     def empty(self):
         return True if not self.frontier else False
 
+
+class PriorityFrontier():
+    def __init__(self, initial_state):
+        self.frontier = [initial_state]
+        self.config_frontier = set()
+        self.config_frontier.add(initial_state.config)
+
+    def pop(self):
+        removed = self.frontier.pop(0)
+        self.config_frontier.remove(removed.config)
+        return removed
+    
+    def insert(self, state):
+        
+        self.config_frontier.add(state.config)
+
+        if not self.frontier:
+            self.frontier.append(state)
+        else:
+            for i, item in enumerate(self.frontier):
+                if state.manhattanCost < item.manhattanCost:
+                    self.frontier.insert(i, state)
+                    break
+                elif item == self.frontier[-1]:
+                    self.frontier.append(state)
+                    break
+
+    def empty(self):
+        return True if not self.frontier else False
+
+    def decreaseKey(self, state, item):
+        self.frontier.remove(item)
+        self.insert(state)
+       
+
+       
 
 # Function that Writes to output.txt
 # Students need to change the method to have the corresponding parameters
@@ -269,7 +308,7 @@ def writeOutput(start_time, nodes_expanded, max_search_depth, state=False):
         print('Failure')
 
 
-def bfs_search(initial_state):
+def bfs_search(initial_state, goal_state):
     """BFS search"""
 
     start_time = time.time()
@@ -288,7 +327,7 @@ def bfs_search(initial_state):
         if max_search_depth < state.cost:
             max_search_depth = state.cost
 
-        if test_goal(state.config):
+        if test_goal(state.config, goal_state):
             return writeOutput(start_time, nodes_expanded, max_search_depth, state)
 
         for neighbor in state.expand():
@@ -298,7 +337,7 @@ def bfs_search(initial_state):
     return writeOutput(start_time, nodes_expanded, max_search_depth)
 
 
-def dfs_search(initial_state):
+def dfs_search(initial_state, goal_state):
     """DFS search"""
 
     start_time = time.time()
@@ -317,7 +356,7 @@ def dfs_search(initial_state):
         if max_search_depth < state.cost:
             max_search_depth = state.cost
 
-        if test_goal(state.config):
+        if test_goal(state.config,goal_state):
             return writeOutput(start_time, nodes_expanded, max_search_depth, state)
 
         for neighbor in state.expand()[::-1]:
@@ -327,16 +366,60 @@ def dfs_search(initial_state):
     return writeOutput(start_time, nodes_expanded, max_search_depth)
 
 
-def A_star_search(initial_state):
+def A_star_search(initial_state, goal_state):
     """A * search"""
 
-    ### STUDENT CODE GOES HERE ###
-    pass
+    start_time = time.time()
+    tracemalloc.start()
+    nodes_expanded = 0
+    max_search_depth = 0
+
+    frontier = PriorityFrontier(initial_state)
+    explored = set()
+
+    while not frontier.empty():
+        state = frontier.pop()
+        explored.add(state.config)
+        nodes_expanded += 1
+
+        if max_search_depth < state.cost:
+            max_search_depth = state.cost
+        
+        if test_goal(state.config, goal_state):
+            return writeOutput(start_time, nodes_expanded, max_search_depth,state)
+        
+        for neighbor in state.expand()[::-1]:
+            if neighbor.config not in explored and neighbor.config not in frontier.config_frontier:
+                frontier.insert(neighbor)
+            
+            elif neighbor.config in frontier.config_frontier:
+                for item in frontier.frontier:
+                    if item.config == neighbor.config and item.manhattanCost > neighbor.manhattanCost:
+                            frontier.decreaseKey(neighbor, item)
+        
+        
+    
+    return writeOutput(start_time, nodes_expanded, max_search_depth)
 
 
 def calculate_total_cost(state):
     """calculate the total estimated cost of a state"""
     return state.cost
+
+
+def calculate_manhattan_dist(idx, value, n):
+
+    """calculate the manhattan distance of a tile"""
+
+    initial_row = idx // n
+
+    initial_col = idx % n
+
+    goal_row = value // n
+    
+    goal_col = value % n
+
+    return abs(initial_row - goal_row) + abs(initial_col - goal_col)
 
 
 def calculate_path(state):
@@ -348,10 +431,9 @@ def calculate_path(state):
     return path[::-1]
 
 
-def test_goal(puzzle_state):
+def test_goal(puzzle_state, goal_state):
     """test the state is the goal state or not"""
-
-    if puzzle_state == (0, 1, 2, 3, 4, 5, 6, 7, 8):
+    if puzzle_state == goal_state:
         return True
 
 # Main Function that reads in Input and Runs corresponding Algorithm
@@ -365,19 +447,21 @@ def main():
 
     size = int(math.sqrt(len(begin_state))) # 3
 
+    goal_state = tuple(range(len(begin_state)))
+
     hard_state = PuzzleState(begin_state, size)
 
     if sm == "bfs":
 
-        bfs_search(hard_state)
+        bfs_search(hard_state, goal_state)
 
     elif sm == "dfs":
 
-        dfs_search(hard_state)
+        dfs_search(hard_state, goal_state)
 
     elif sm == "ast":
 
-        A_star_search(hard_state)
+        A_star_search(hard_state, goal_state)
 
     else:
 
