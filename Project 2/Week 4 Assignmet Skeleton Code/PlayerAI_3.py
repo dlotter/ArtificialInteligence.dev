@@ -70,7 +70,7 @@ class PlayerAI(BaseAI):
 
 
     def terminalTest(self, grid, prevTime, limitador):
-        if time.process_time() - prevTime > 0.2 or limitador > 5:
+        if time.process_time() - prevTime > 0.2 or limitador > 7:
             return True
         else:
             return False
@@ -79,18 +79,29 @@ class PlayerAI(BaseAI):
         availableCellsHeuristic = len(grid.getAvailableCells())
 
         sortedCellsHeuristic = 0
-        if sorted(grid.map[0]) == grid.map[0]:
-            sortedCellsHeuristic += 10_000
-        if sorted(grid.map[1]) == grid.map[1]:
-            sortedCellsHeuristic += 10_000
-        if sorted(grid.map[2]) == grid.map[2]:
-            sortedCellsHeuristic += 10_000
+        if sorted(grid.map[0], reverse=True) == grid.map[0]:
+            sortedCellsHeuristic += 10
+        if sorted(grid.map[1], reverse=True) == grid.map[1]:
+            sortedCellsHeuristic += 10
+        if sorted(grid.map[2], reverse=True) == grid.map[2]:
+            sortedCellsHeuristic += 10
 
         maxTileHeuristic = 0
-        if grid.map[-1][-1] == grid.getMaxTile():
-            maxTileHeuristic += 100_000
+        if grid.map[-1][0] == grid.getMaxTile():
+            maxTileHeuristic += 20
 
-        util = availableCellsHeuristic + sortedCellsHeuristic + maxTileHeuristic
+        adjacentHeuristic = 0
+        for x in range(4):
+            if grid.map[x][0] == grid.map[x][1]:
+                adjacentHeuristic += 2
+            if grid.map[x][1] == grid.map[x][2]:
+                adjacentHeuristic += 2
+            if grid.map[0][x] == grid.map[1][x]:
+                adjacentHeuristic += 2
+            if grid.map[1][x] == grid.map[2][x]:
+                adjacentHeuristic += 2
+
+        util = availableCellsHeuristic + sortedCellsHeuristic + maxTileHeuristic + adjacentHeuristic
 
         return util
 
