@@ -69,7 +69,7 @@ class PuzzleState(object):
 
             raise Exception("the length of config is not correct!")
         
-        self.config = config
+        self.config = config #(0,1,2,4,3,8..)
 
         self.n = n
 
@@ -86,6 +86,13 @@ class PuzzleState(object):
         self.manhattanCost = cost
 
         for i, item in enumerate(self.config):
+            # self.config = (3,4,5,6,7,8,0,1,2)
+            # i = 0, 1, 2, ...
+            # item = 3, 4, 5, ...
+            if item != 0:
+                self.manhattanCost += calculate_manhattan_dist(i, item, self.n)
+
+        for i, item in enumerate(self.config):
             
             if item == 0:
 
@@ -95,9 +102,6 @@ class PuzzleState(object):
 
                 break
 
-        for i, item in enumerate(self.config):
-            if item != 0:
-                self.manhattanCost += calculate_manhattan_dist(i, item, self.n)
 
     def display(self):
 
@@ -408,7 +412,7 @@ def calculate_total_cost(state):
 
 
 def calculate_manhattan_dist(idx, value, n):
-
+    # (0,1,2,3,4,5,6,7,8)
     """calculate the manhattan distance of a tile"""
 
     initial_row = idx // n
