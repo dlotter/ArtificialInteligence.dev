@@ -1,6 +1,8 @@
 from ComputerAI_3 import ComputerAI
 from random import randint
 import time
+from math import log
+import random
 
 from BaseAI_3 import BaseAI
 
@@ -12,19 +14,21 @@ class PlayerAI(BaseAI):
         beta = +999_999_999
         prevTime = time.process_time()
 
-
         (child, _) = self.maximize(grid, alfa, beta, prevTime)
-
         return child
 
     def maximize(self, grid, alfa, beta, prevTime, limitador = 0):
         limitador += 1
+        
         if self.terminalTest(grid, prevTime, limitador):
             return (None, self.calcUtility(grid))
         
         (maxChild, maxUtility) = (None, -999_999_999)
 
-        for move in grid.getAvailableMoves():
+        availableMoves = grid.getAvailableMoves()
+        random.shuffle(availableMoves)
+
+        for move in availableMoves:
             child = grid.clone()
             child.move(move)
 
@@ -49,11 +53,12 @@ class PlayerAI(BaseAI):
             (minChild, minUtility) = (None, 999_999_999)
 
             cells = grid.getAvailableCells()
+            random.shuffle(cells)
 
             for move in cells:
                 child = grid.clone()
                 if move and child.canInsert(move):
-                    child.setCellValue(move, 2)
+                    child.setCellValue(move, 2 if randint(0,99) < 90 else 4)
 
                 (_, utility) = self.maximize(child, alfa, beta, prevTime, limitador)
 
@@ -70,7 +75,7 @@ class PlayerAI(BaseAI):
 
 
     def terminalTest(self, grid, prevTime, limitador):
-        if time.process_time() - prevTime > 0.2 or limitador > 7:
+        if time.process_time() - prevTime > 0.2 or limitador > 4:
             return True
         else:
             return False
@@ -79,29 +84,28 @@ class PlayerAI(BaseAI):
         availableCellsHeuristic = len(grid.getAvailableCells())
 
         sortedCellsHeuristic = 0
-        if sorted(grid.map[0], reverse=True) == grid.map[0]:
-            sortedCellsHeuristic += 10
-        if sorted(grid.map[1], reverse=True) == grid.map[1]:
-            sortedCellsHeuristic += 10
-        if sorted(grid.map[2], reverse=True) == grid.map[2]:
-            sortedCellsHeuristic += 10
+        for x in range(3):
+            if sorted(grid.map[x], reverse=True) == grid.map[x]:
+                sortedCellsHeuristic += 1
 
         maxTileHeuristic = 0
         if grid.map[-1][0] == grid.getMaxTile():
-            maxTileHeuristic += 20
+            maxTileHeuristic += 1
 
         adjacentHeuristic = 0
         for x in range(4):
             if grid.map[x][0] == grid.map[x][1]:
-                adjacentHeuristic += 2
+                adjacentHeuristic += 1
             if grid.map[x][1] == grid.map[x][2]:
-                adjacentHeuristic += 2
+                adjacentHeuristic += 1
             if grid.map[0][x] == grid.map[1][x]:
-                adjacentHeuristic += 2
+                adjacentHeuristic += 1
             if grid.map[1][x] == grid.map[2][x]:
-                adjacentHeuristic += 2
+                adjacentHeuristic += 1
 
-        util = availableCellsHeuristic + sortedCellsHeuristic + maxTileHeuristic + adjacentHeuristic
+        maxValueHeuristic = grid.getMaxTile() if grid.getMaxTile else 1
+
+        util = availableCellsHeuristic + 2*sortedCellsHeuristic + 15*maxTileHeuristic + adjacentHeuristic + log(maxValueHeuristic)
 
         return util
 
